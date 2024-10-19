@@ -1,0 +1,17 @@
+{{- if .Values.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "spring-service.fullname" . }}
+  labels:
+    {{- include "spring-service.labels" . | nindent 4 }}
+  annotations:
+    helm.sh/resource-policy: keep # Keep this pvc when uninstall chart
+spec:
+  accessModes:
+    {{- toYaml .Values.persistence.accessModes . | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.persistence.size | quote }}
+  storageClassName: {{ .Values.persistence.storageClass | quote }}
+{{- end }}

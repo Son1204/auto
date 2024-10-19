@@ -1,0 +1,1 @@
+package vn.cmctelecom.dx.#{package-name}.config;

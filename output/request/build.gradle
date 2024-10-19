@@ -1,0 +1,91 @@
+//file:noinspection GrUnresolvedAccess
+description 'CMC Telecom - DX Request Services'
+
+subprojects {
+    var isService = project.name.endsWith('service')
+
+    apply plugin: 'java-library'
+    apply plugin: 'idea'
+    apply plugin: 'io.freefair.lombok'
+    apply plugin: 'io.spring.dependency-management'
+
+    if (!isService) {
+        apply plugin: 'maven-publish'
+    } else {
+        apply plugin: 'org.springframework.boot'
+        apply plugin: 'com.google.cloud.tools.jib'
+    }
+
+    // default repositories for all project {
+    repositories {
+        mavenCentral()
+        maven { url privateMavenPublicURL }
+    }
+
+    configurations.configureEach {
+        resolutionStrategy.cacheChangingModulesFor 0, 'minutes'
+    }
+
+    idea {
+        module {
+            downloadSources = true
+            downloadJavadoc = true
+        }
+    }
+
+    dependencies {
+        if (isService) {
+            // Observability
+            runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+            // Logging
+            implementation 'net.logstash.logback:logstash-logback-encoder'
+
+            // Spring Cloud
+            implementation 'org.springframework.cloud:spring-cloud-starter-bootstrap'
+            implementation 'org.springframework.cloud:spring-cloud-starter-config'
+            implementation 'org.springframework.retry:spring-retry'
+
+            // OpenAPI
+//            implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui"
+        }
+    }
+
+    dependencyManagement {
+        imports {
+            mavenBom "vn.cmctelecom.dx:insight-bom:${insightBomVersion}"
+        }
+    }
+
+    // Set up maven publish for default project
+    if (!isService) {
+        java {
+            withSourcesJar()
+        }
+
+        publishing {
+            repositories {
+                maven {
+                    name = 'nexus'
+                    credentials {
+                        username = privateMavenUsername
+                        password = privateMavenPassword
+                    }
+                    url = version.endsWith('SNAPSHOT') ? privateMavenSnapshotURL : privateMavenReleaseURL
+                }
+            }
+            publications {
+                insightLib(MavenPublication) {
+                    from components.java
+                    versionMapping {
+                        usage('java-api') {
+                            fromResolutionOf('runtimeClasspath')
+                        }
+                        usage('java-runtime') {
+                            fromResolutionResult()
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

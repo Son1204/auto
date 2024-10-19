@@ -1,0 +1,6 @@
+mybatis-plus:
+  type-aliases-package: vn.cmctelecom.dx.request.domain.entity
+
+logging.level:
+  'vn.cmctelecom.dx.request.inf.mapper': warn
+

@@ -1,0 +1,88 @@
+server:
+  shutdown: graceful
+  error:
+    whitelabel:
+      enabled: false
+    include-message: always
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: true
+
+# ======================================================
+# Spring
+# ======================================================
+spring:
+  main:
+    banner-mode: off
+    log-startup-info: on
+  flyway.enabled: false
+  jpa.hibernate.ddl-auto: none
+  datasource:
+    hikari:
+      minimum-idle: 3
+      maximum-pool-size: 30
+      max-lifetime: 1800000
+      connection-test-query: select 1 from dual
+    url: jdbc:oracle:thin:@//#{database-url}/insight
+    username: #{database-username}
+    password: #{database-password}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jackson:
+    default-property-inclusion: non_null
+    date-format: com.fasterxml.jackson.databind.util.StdDateFormat
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      max-request-size: 1024MB
+      max-file-size: 1024MB
+  messages:
+    always-use-message-format: false
+    fallback-to-system-locale: true
+    use-code-as-default-message: true
+  cloud:
+    refresh:
+      enabled: false
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.error.ErrorMvcAutoConfiguration
+  mvc:
+    throw-exception-if-no-handler-found: true
+  web:
+    resources:
+      add-mappings: false
+# Actuator endpoints
+# ======================================================
+management.endpoints.web.exposure.include: info, health, prometheus, threaddump, heapdump, metrics
+management.endpoint.prometheus.enabled: true
+# ======================================================
+# API Document Configuration
+# ======================================================
+springdoc.oauth2:
+  api-title: CMC Telecom - DX APIs
+  api-description: DX - Restfull API Document
+  server-urls:
+    - http://localhost:8080
+  authorization-url: https://insight-sso.cmctelecom.vn/realms/rnd2-dev/protocol/openid-connect/auth
+  token-url: https://insight-sso.cmctelecom.vn/realms/rnd2-dev/protocol/openid-connect/token
+  refresh-url: https://insight-sso.cmctelecom.vn/realms/rnd2-dev/protocol/openid-connect/token
+# ======================================================
+# Logging
+# ======================================================
+logging.level:
+  root: info
+mybatis-plus:
+  type-handlers-package: vn.cmctelecom.dx.core.mybatis.type
+  global-config:
+    banner: off
+    db-config:
+      logic-delete-field: 1
+      logic-not-delete-value: 0
+      table-underline: true
+  configuration:
+    call-setters-on-nulls: false
+    auto-mapping-unknown-column-behavior: warning
+    default-enum-type-handler: org.apache.ibatis.type.EnumTypeHandler
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl

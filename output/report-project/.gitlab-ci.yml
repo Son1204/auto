@@ -1,0 +1,42 @@
+cache:
+  key: $CI_COMMIT_REF_SLUG
+  paths:
+    - .gradle/
+    - ./*/build/libs
+  policy: pull-push
+
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  image:
+    name: nexus.cmctelecom.vn/k8s-skaffold/skaffold:v2.10.0-lts
+    entrypoint: [ "" ]
+  variables:
+    KUBECONFIG: /etc/deploy/config
+  before_script:
+    - |-
+      mkdir -p ~/.docker
+      mkdir -p /etc/deploy
+      echo $DX_DOCKER_CONFIG > ~/.docker/config.json
+      case $CI_COMMIT_BRANCH in
+        main | master) cat $K8S_PROD_CONFIG > ${KUBECONFIG} ;;
+        *) cat $K8S_DEV_CONFIG  > ${KUBECONFIG} ;;
+      esac
+      chmod go-r $KUBECONFIG
+      
+      case $CI_COMMIT_BRANCH in
+        master | main) DEPLOY_PROFILE='prod' ;;
+        staging | qas) DEPLOY_PROFILE='qas' ;;
+        *) DEPLOY_PROFILE='dev' ;;
+      esac
+  script:
+    - chmod 777 /builds/cds/dx/backends/prtg/gradlew
+    - skaffold run -f skaffold.yaml  -p $DEPLOY_PROFILE --cache-artifacts=false --skip-tests=true --status-check=false
+  tags:
+    - docker
+  only:
+    - master
+    - dev
+    - qas

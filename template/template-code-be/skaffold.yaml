@@ -1,0 +1,90 @@
+apiVersion: skaffold/v3
+kind: Config
+metadata:
+  name: #{project-name}-service
+build:
+  tagPolicy:
+    gitCommit:
+      ignoreChanges: true
+      prefix: snapshot-
+      variant: AbbrevCommitSha
+  artifacts:
+    - image: nexus.cmctelecom.vn/dx/#{project-name}-service
+      context: .
+      jib:
+        project: prtg-service
+        type: gradle
+        fromImage: nexus.cmctelecom.vn/eclipse-temurin:17-jre-alpine
+        #args:
+        #  - -Djib.to.auth.username=insight
+        #  - -Djib.to.auth.password=123qwe!@#
+        #  - -Djib.from.auth.username=insight
+        #  - -Djib.from.auth.password=123qwe!@#
+deploy:
+  helm:
+    releases:
+      - name: #{project-name}-service
+        chartPath: _charts/#{project-name}-service
+        namespace: dx-backends
+        setValueTemplates:
+          image.repository: "{{ .IMAGE_REPO }}"
+          image.tag: "{{ .IMAGE_TAG }}"
+          activeProfiles: dev
+          fullnameOverride: #{project-name}-service
+profiles:
+  - name: dev
+    build:
+      tagPolicy:
+        gitCommit:
+          ignoreChanges: true
+          prefix: dev-
+          variant: AbbrevCommitSha
+    deploy:
+      helm:
+        releases:
+          - name: #{project-name}-service
+            chartPath: _charts/#{project-name}-service
+            namespace: dx-backends
+            setValueTemplates:
+              image.repository: "{{ .IMAGE_REPO }}"
+              image.tag: "{{ .IMAGE_TAG }}"
+              activeProfiles: dev
+              fullnameOverride: #{project-name}-service
+
+  - name: qas
+    build:
+      tagPolicy:
+        gitCommit:
+          ignoreChanges: true
+          prefix: qas-
+          variant: AbbrevCommitSha
+    deploy:
+      helm:
+        releases:
+          - name: #{project-name}-service
+            chartPath: _charts/#{project-name}-service
+            namespace: dx-backends
+            setValueTemplates:
+              image.repository: "{{ .IMAGE_NAME }}"
+              image.tag: '{{ .IMAGE_TAG }}'
+              activeProfiles: qas
+              fullnameOverride: #{project-name}-service
+  - name: prod
+    build:
+      tagPolicy:
+        gitCommit:
+          ignoreChanges: true
+          prefix: prod-
+          variant: AbbrevCommitSha
+    deploy:
+      helm:
+        releases:
+          - name: #{project-name}-service
+            chartPath: _charts/#{project-name}-service
+            namespace: dx-backends
+            setValueTemplates:
+              image.repository: "{{ .IMAGE_REPO }}"
+              image.tag: "{{ .IMAGE_TAG }}"
+              activeProfiles: prod
+              fullnameOverride: #{project-name}-service
+

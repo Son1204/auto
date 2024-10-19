@@ -1,0 +1,18 @@
+dependencies {
+    implementation project(':request-api')
+
+    implementation 'vn.cmctelecom.dx:insight-spring'
+    implementation 'vn.cmctelecom.dx:insight-util'
+
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    implementation 'org.springframework.data:spring-data-commons'
+    implementation 'com.baomidou:mybatis-plus-boot-starter'
+    implementation 'com.baomidou:mybatis-plus-annotation'
+
+    runtimeOnly 'org.mybatis:mybatis-spring'
+    runtimeOnly 'com.oracle.database.jdbc:ojdbc8'
+}

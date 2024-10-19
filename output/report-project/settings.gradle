@@ -1,0 +1,21 @@
+pluginManagement {
+    repositories {
+        mavenCentral()
+        maven { url privateMavenPublicURL }
+    }
+}
+
+plugins {
+    id 'io.freefair.lombok' version "${lombokPluginVersion}" apply false
+    id 'org.springframework.boot' version "${springBootVersion}" apply false
+    id 'com.google.cloud.tools.jib' version "${jibVersion}" apply false
+    id 'org.graalvm.buildtools.native' version "${graalvmBuildToolsVersion}" apply false
+    id 'io.spring.dependency-management' version "${springDependenciesManagementVersion}" apply false
+}
+
+rootProject.name = 'report-project'
+
+include ':report-project-api'
+include ':report-project-service'
+
+

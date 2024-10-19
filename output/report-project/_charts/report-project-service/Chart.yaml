@@ -1,0 +1,6 @@
+apiVersion: v2
+name: report-project-service
+description: A Helm chart for Spring boot application
+type: application
+version: "0.0.2"
+appVersion: "0.0.1"
