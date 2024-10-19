@@ -1,0 +1,4 @@
+replicaCount: 1
+image:
+  tag: prod-20241016
+activeProfiles: prod

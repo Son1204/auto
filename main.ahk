@@ -15,14 +15,23 @@ Constructor()
 	myGui := Gui()
 	ButtonCreateprojectbe := myGui.Add("Button", "x32 y24 w151 h58", "Create project be")
 	ButtonCreateprojectbe.OnEvent("Click", OnEventHandler)
+	ButtonCreatehemlbe := myGui.Add("Button", "x200 y24 w151 h58", "Create helm be")
+	ButtonCreatehemlbe.OnEvent("Click", OnEventHandlerCreateHelmBe)
 	myGui.OnEvent('Close', (*) => OnEventCloseHandler())
 	myGui.Title := "My Tool"
 	
 	OnEventHandler(*)
 	{
 		ToolTip("Tao project be" ButtonCreateprojectbe.Text "`n", 77, 277)
-		; RunWait "C:/Program Files/AutoHotkey/v2/AutoHotkey64.exe /force create-project-be.ahk"
 		Run "create-project-be.ahk"
+		SetTimer () => Send("^k"), -1000
+		SetTimer () => ToolTip(), -3000 ; tooltip timer
+	}
+
+	OnEventHandlerCreateHelmBe(*)
+	{
+		ToolTip("Tao heml be" ButtonCreatehemlbe.Text "`n", 77, 277)
+		Run "create-helm-be.ahk"
 		SetTimer () => Send("^k"), -1000
 		SetTimer () => ToolTip(), -3000 ; tooltip timer
 	}

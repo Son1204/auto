@@ -1,42 +1,101 @@
-cache:
-  key: $CI_COMMIT_REF_SLUG
-  paths:
-    - .gradle/
-    - ./*/build/libs
-  policy: pull-push
+# --------------------------------------------------------------------------------------------------
+# Variable defination
+# --------------------------------------------------------------------------------------------------
+variables:
+  MODULE_NAME: #{project-name}-service
+  GIT_DEPTH: 0 # Disable shallow clone (fetch all branches and tags for each time)
+  GRADLE_USER_HOME: .gradle/ # Change gradle user home folder to current folders.
+  BUILD_IMAGE: nexus.cmctelecom.vn/dx/$MODULE_NAME
+  MANIFEST_PATH: xspace/dx-backends/$MODULE_NAME
+  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache
 
+#---------------------------------------------------------------------------------------------
+# When pipelines are created
+#---------------------------------------------------------------------------------------------
+workflow:
+  rules:
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^dev-.*$/
+      variables:
+        DEPLOY_ENV: "dev"
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^qas-.*$/
+      variables:
+        DEPLOY_ENV: "qas"
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_TAG =~ /^prod-.*$/
+      variables:
+        DEPLOY_ENV: "prod"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# --------------------------------------------------------------------------------------------------
+# Stages defination: test -> build -> deploy
+# --------------------------------------------------------------------------------------------------
 stages:
-  - deploy
+  #- test only apply for Sonarqube
+  - sonarqube-check
+  - build
+  - manifest_updation
 
-deploy:
-  stage: deploy
-  image:
-    name: nexus.cmctelecom.vn/k8s-skaffold/skaffold:v2.10.0-lts
-    entrypoint: [ "" ]
-  variables:
-    KUBECONFIG: /etc/deploy/config
+# --------------------------------------------------------------------------------------------------
+#  TODO: SonarQube scan
+# --------------------------------------------------------------------------------------------------
+sonarqube-check:
+  image: nexus.cmctelecom.vn/eclipse-temurin:17-jdk-alpine
+  stage: sonarqube-check
+  cache:
+    paths:
+      - .sonar/cache
   before_script:
-    - |-
-      mkdir -p ~/.docker
-      mkdir -p /etc/deploy
-      echo $DX_DOCKER_CONFIG > ~/.docker/config.json
-      case $CI_COMMIT_BRANCH in
-        main | master) cat $K8S_PROD_CONFIG > ${KUBECONFIG} ;;
-        *) cat $K8S_DEV_CONFIG  > ${KUBECONFIG} ;;
-      esac
-      chmod go-r $KUBECONFIG
-      
-      case $CI_COMMIT_BRANCH in
-        master | main) DEPLOY_PROFILE='prod' ;;
-        staging | qas) DEPLOY_PROFILE='qas' ;;
-        *) DEPLOY_PROFILE='dev' ;;
-      esac
+    # Make sure ./gradlew can runnable
+    - chmod a+x ./gradlew
   script:
-    - chmod 777 /builds/cds/dx/backends/prtg/gradlew
-    - skaffold run -f skaffold.yaml  -p $DEPLOY_PROFILE --cache-artifacts=false --skip-tests=true --status-check=false
-  tags:
-    - docker
+    - ./gradlew sonar -Dsonar.qualitygate.wait=true
+  allow_failure: false
   only:
-    - master
-    - dev
-    - qas
+    - merge_requests
+
+# --------------------------------------------------------------------------------------------------
+# Build image
+# --------------------------------------------------------------------------------------------------
+build_image:
+  image: nexus.cmctelecom.vn/eclipse-temurin:17-jdk-alpine
+  tags: ["prod"]
+  stage: build
+  cache:
+    paths:
+      - .gradle/caches
+      - .gradle/wrapper
+    policy: pull-push
+  before_script:
+    # Setup docker authentication
+    - mkdir -p ~/.docker
+    - echo $DX_DOCKER_CONFIG > ~/.docker/config.json
+    # Make sure ./gradlew can runnable
+    - chmod a+x ./gradlew
+  script:
+    - ./gradlew jib -Djib.to.image=$BUILD_IMAGE:$CI_COMMIT_TAG
+    - echo "Published $BUILD_IMAGE:$CI_COMMIT_TAG"
+  rules:
+    - if: $CI_COMMIT_TAG
+
+# --------------------------------------------------------------------------------------------------
+# Update manifest repository
+# --------------------------------------------------------------------------------------------------
+update_manifest:
+  stage: manifest_updation
+  tags: ["prod"]
+  image: nexus.cmctelecom.vn/dx-git:latest
+  cache: {} # disable cache
+  before_script:
+    - git config --global user.email "gitlab-ci@git.cmctelecom.vn"
+    - git config --global user.name "GitLab CI/CD"
+    - git clone https://ci:$DX_MANIFEST_CI_TOKEN@git.cmctelecom.vn/cds/devops/argocd-manifest.git
+    - cd argocd-manifest
+    - git pull origin master
+  script:
+    - yq -i '.image.tag = strenv(CI_COMMIT_TAG)' ${MANIFEST_PATH}/values-${DEPLOY_ENV}.yaml
+    - cat ${MANIFEST_PATH}/values-${DEPLOY_ENV}.yaml
+    - echo ${MANIFEST_PATH}/values-${DEPLOY_ENV}.yaml
+    - git add ${MANIFEST_PATH}/values-${DEPLOY_ENV}.yaml
+    - git commit -am "Update $MODULE_NAME to version $CI_COMMIT_TAG - $CI_COMMIT_MESSAGE"
+    - git push
+  rules:
+    - if: $CI_COMMIT_TAG

@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "spring-service.fullname" . }}
+  labels:
+    {{- include "spring-service.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "spring-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "spring-service.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "spring-service.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      hostAliases:
+        {{- toYaml .Values.hostAliases | nindent 8 }}
+      containers:
+      {{- if .Values.opa.enabled }}
+      - name: opal-client
+        image: {{ .Values.opa.image | quote }}
+        imagePullPolicy: {{ .Values.opa.imagePullPolicy | default "IfNotPresent" | quote }}
+        ports:
+          - name: opal-client
+            containerPort: {{ .Values.opa.port }}
+            protocol: TCP
+          - name: opa
+            containerPort: {{ .Values.opa.opaPort }}
+            protocol: TCP
+        env:
+          - name: UVICORN_NUM_WORKERS
+            value: "1"
+          - name: OPAL_SERVER_URL
+            value: {{ .Values.opa.serverUrl | quote }}
+          {{- if .Values.opa.extraEnv }}
+          {{- range $name, $value := .Values.opa.extraEnv }}
+          - name: {{ $name }}
+            value: {{ $value | quote }}
+          {{- end }}
+          {{- end }}
+        {{- if .Values.opa.secrets }}
+        envFrom:
+        {{- range $name := .Values.opa.secrets }}
+        - secretRef:
+            name: {{ $name }}
+        {{- end }}
+        {{- end }}
+        {{- if .Values.opa.resources }}
+        resources:
+        {{- toYaml .Values.opa.resources | nindent 12 }}
+        {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /healthcheck
+            port: opal-client
+          failureThreshold: 5
+          initialDelaySeconds: 5
+          timeoutSeconds: 10
+          periodSeconds: 15
+
+        livenessProbe:
+          httpGet:
+            path: /healthcheck
+            port: opal-client
+          failureThreshold: 5
+          timeoutSeconds: 10
+          periodSeconds: 30
+      {{- end }}
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 12 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+          - name: SPRING_PROFILES_ACTIVE
+            value: {{ .Values.activeProfiles }}
+          - name: TZ
+            value: {{ .Values.timeZone | default "Asia/Ho_Chi_Minh" }}
+          - name: JAVA_TOOL_OPTIONS
+            value: {{ .Values.jvmOptions | default "" }}
+        ports:
+          {{- range .Values.service.ports }}
+          - name: {{ .name }}
+            containerPort: {{ .containerPort }}
+            protocol: {{ .protocol }}
+          {{- end }}
+        {{- if .Values.livenessProbeEnabled }}
+        livenessProbe:
+          {{ toYaml .Values.livenessProbe | nindent 12 }}
+        {{- end }}
+        {{- if .Values.readinessProbeEnabled }}
+        readinessProbe:
+          {{ toYaml .Values.readinessProbe | nindent 12 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        {{- if .Values.persistence.enabled }}
+        volumeMounts:
+          - mountPath: {{ .Values.persistence.mountPath }}
+            name: data
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "spring-service.fullname" . }}
+      {{- end }}

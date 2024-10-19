@@ -1,0 +1,21 @@
+replicaCount: 1
+image:
+  tag: dev-20241014
+activeProfiles: dev
+
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: { }
+  # kubernetes.io/ingress.class: nginx
+  # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: https://xspace-dev.cmctelecom.vn
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: [ ]
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local

@@ -1,0 +1,4 @@
+replicaCount: 1
+image:
+  tag: qas-111024
+activeProfiles: qas
