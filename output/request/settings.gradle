@@ -11,11 +11,14 @@ plugins {
     id 'com.google.cloud.tools.jib' version "${jibVersion}" apply false
     id 'org.graalvm.buildtools.native' version "${graalvmBuildToolsVersion}" apply false
     id 'io.spring.dependency-management' version "${springDependenciesManagementVersion}" apply false
+    id 'org.sonarqube' version "${sonarVersion}" apply false
 }
 
 rootProject.name = 'request'
 
 include ':request-api'
 include ':request-service'
+
+
 
 

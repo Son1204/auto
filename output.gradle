@@ -12,6 +12,7 @@ plugins {
     id 'org.graalvm.buildtools.native' version "${graalvmBuildToolsVersion}" apply false
     id 'io.spring.dependency-management' version "${springDependenciesManagementVersion}" apply false
     id 'org.sonarqube' version "${sonarVersion}" apply false
+    id 'org.sonarqube' version "${sonarVersion}" apply false
 }
 
 rootProject.name = '#{project-name}'

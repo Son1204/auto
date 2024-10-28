@@ -8,6 +8,7 @@ subprojects {
     apply plugin: 'idea'
     apply plugin: 'io.freefair.lombok'
     apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'org.sonarqube'
 
     if (!isService) {
         apply plugin: 'maven-publish'
