@@ -7,81 +7,169 @@
     if TargetFolder = ""
         return
 
-    ; if FileExist(A_WorkingDir "/output.gradle")
-    ;     FileDelete A_WorkingDir "/output.gradle"
+    fileAppendToLine(TargetFolder "/settings.gradle", "springDependenciesManagementVersion", "    id 'org.sonarqube' version `"${sonarVersion}`" apply false")
+    fileAppendToLine(TargetFolder "/gradle.properties", "mavenVersion", "sonarVersion=4.2.1.3168")
+    FileAppend("`napply plugin: 'org.sonarqube'", TargetFolder "/build.gradle")
 
-    AddAtLine(TargetFolder "/settings.gradle", 14, "    id 'org.sonarqube' version `"${sonarVersion}`" apply false")
-    AddAtLine(TargetFolder "/gradle.properties", 26, "sonarVersion=4.2.1.3168")
-    AddAtLine(TargetFolder "/build.gradle", 11, "    apply plugin: 'org.sonarqube'")
+    sonarqubeCheck := "
+                        (
+                        # --------------------------------------------------------------------------------------------------
+                        sonarqube-check:
+                        image: nexus.cmctelecom.vn/eclipse-temurin:17-jdk-alpine
+                        tags: ["sonar"]
+                        stage: sonarqube-check
+                        cache:
+                            key: "${CI_JOB_NAME}"
+                            paths:
+                            - .sonar/cache
+                        before_script:
+                            # Make sure ./gradlew can runnable
+                            - chmod a+x ./gradlew
+                        script:
+                            - ./gradlew sonar -Dsonar.qualitygate.wait=true
+                        allow_failure: false
+                        rules: 
+                            - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
+                        )"
+    fileAppendToLine(TargetFolder "/.gitlab-ci.yml", "SonarQube scan", sonarqubeCheck)
+    removeLine(TargetFolder "/.gitlab-ci.yml", "- if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == `"master`"'")
+    fileAppendToLine(TargetFolder "/.gitlab-ci.yml", "test only apply for Sonarqube", "  - sonarqube-check")
+    fileAppendToLine(TargetFolder "/.gitlab-ci.yml", "MANIFEST_PATH:", '  SONAR_USER_HOME: "${CI_PROJECT_DIR}/.sonar"  # Defines the location of the analysis task cache')
 
-    
-    ; Loop read, TargetFolder "/settings.gradle", TargetFolder "/settings.gradle"
-    ; {
-    ;     FileAppend(A_LoopReadLine "`n")
-    ;     if InStr(A_LoopReadLine, "id 'io.spring.dependency-management' version")
-    ;         FileAppend("    id 'org.sonarqube' version `"${sonarVersion}`" apply false`n")
-    ; }
 
-    ; FileAppend "Another line.`n", TargetFolder "/gradle.properties"
+    GitBranch := "master"
+    GitChheckoutBranch := "git checkout " GitBranch
+    GitCreateBranchSonar := "git checkout -b son.ct1/add_sonarqube_check" 
+    GitCommand := "git status"
+    GitAddFile := "git add build.gradle settings.gradle .gitlab-ci.yml gradle.properties"
+    GitCommit := "git commit -m `"add sonarqube check`""
+    GitShowLog := "git log"
+    TempFile := TargetFolder "/GitOutput.txt"
 
-    ; Loop read, TargetFolder "/build.gradle", TargetFolder "/build.gradle"
-    ; {
-    ;     FileAppend(A_LoopReadLine "`n")
-    ;     if InStr(A_LoopReadLine, "apply plugin: 'io.spring.dependency-management'")
-    ;         FileAppend("    apply plugin: 'org.sonarqube'`n")
-    ; }
+    ; Run the Git command in cmd and redirect the output to a file
+    RunWait 'cmd.exe /c cd "' TargetFolder '" && ' GitChheckoutBranch ' > "' TempFile '"', , "Hide"
+    RunWait 'cmd.exe /c cd "' TargetFolder '" && ' GitCreateBranchSonar ' > "' TempFile '"', , "Hide"
+    RunWait 'cmd.exe /c cd "' TargetFolder '" && ' GitAddFile ' > "' TempFile '"', , "Hide"
+    RunWait 'cmd.exe /c cd "' TargetFolder '" && ' GitCommit ' > "' TempFile '"', , "Hide"
+    RunWait 'cmd.exe /c cd "' TargetFolder '" && ' GitCommand ' > "' TempFile '"', , "Hide"
+    RunWait 'cmd.exe /c cd "' TargetFolder '" && ' GitShowLog ' > "' TempFile '"', , "Hide"
 
 
-    ; ingressDevEnable := "false"
-    ; ingressDevHost := "https://xspace-dev.cmctelecom.vn"
-    ; enableOpa := "false"
+    ; Read the output from the file
+    GitOutput := FileRead(TempFile)
 
-    ; TargetFolder := DirSelect(A_WorkingDir, 1, "Chon thu muc tao helm be")
-    ; if TargetFolder = ""
-    ;     return
+    ; Clean up by deleting the temporary file
+    FileDelete(TempFile)
 
-    ; DirDelete TargetFolder, true
-    ; DirCopy A_WorkingDir "/template/helm-be/template-service", TargetFolder, 1
+    ; Display the output in a message box
+    ; MsgBox(GitOutput)
 
-    ; ; base info project
-    ; projectNameCode := "#{project-name}"
-    ; ingressDevEnableCode := "#{ingress-enable-dev}"
-    ; ingressDevHostCode := "#{ingress-dev-host}"
-    ; enableOpaCode := "#{enable-opa}"
-
-    ; SplitPath TargetFolder, &projectName
-
-    ; ; replace param in files
-    ; Loop Files, TargetFolder "\*.*", "R"  ; Recurse into subfolders.
-    ; {
-    ;     if RegExMatch(A_LoopFilePath, "i)templates")
-    ;         continue
-
-    ;     ; MsgBox A_LoopFilePath
-    ;     contentOfFile := FileRead(A_LoopFilePath)
-    ;     contentOfFileAfterProcess := StrReplace(contentOfFile, projectNameCode, projectName)
-    ;     contentOfFileAfterProcess := StrReplace(contentOfFileAfterProcess, ingressDevEnableCode, ingressDevEnable)
-    ;     contentOfFileAfterProcess := StrReplace(contentOfFileAfterProcess, ingressDevHostCode, ingressDevHost)
-    ;     contentOfFileAfterProcess := StrReplace(contentOfFileAfterProcess, enableOpaCode, enableOpa)
-    ;     file := FileOpen(A_LoopFilePath, "w")
-    ;     file.Write(contentOfFileAfterProcess)
-    ;     file.Close
-    ; }
-    MsgBox "Tao config heml be thanh cong, dir: ", "Thong bao"
+    MsgBox "Apply sonarqube check done, gitoutput: " GitOutput, "Thong bao"
     ExitApp
 }
 
-AddAtLine(Path, LineNum, Content)
+fileAppendToLine(filePath, keyword, appendText)
 {
-	file := FileOpen(Path, 0x3|0x4)
-	if (!file)
-		return
-	buffer := file.Read()
-	array := StrSplit(buffer, "`n")
-	array.InsertAt(LineNum, Content)
-	buffer := ""
-	for _,line in array
-		buffer .= line "`n"
-	file.Seek(0)
-	file.Write(buffer)
+    ; Read the file content
+    FileContent := FileRead(filePath)
+    if !FileContent
+    {
+        MsgBox "Could not read file!"
+        return
+    }
+
+    ; Initialize a variable to store the modified content
+    ModifiedContent := ""
+
+    ; Split the content into lines and iterate
+    for Line in StrSplit(FileContent, "`n")
+    {
+        ; Check if the line contains the keyword
+        if InStr(Line, keyword)
+        {
+            ; Append text to this line
+            Line .= appendText
+        }
+
+        ; Rebuild the modified content
+        ModifiedContent .= Line "`n"
+    }
+
+    ; Write the modified content back to the file
+    FileDelete(FilePath)  ; Delete the old file
+    FileAppend(ModifiedContent, FilePath)  ; Write the new content
+}
+
+fileDeleteLineAtKeyword(filePath, keyword)
+{
+    ; Read the file content
+    FileContent := FileRead(filePath)
+    if !FileContent
+    {
+        MsgBox "Could not read file!"
+        return
+    }
+
+    ; Initialize a variable to store the modified content
+    ModifiedContent := ""
+
+    ; Split the content into lines and iterate
+    skip := false
+    for Line in StrSplit(FileContent, "`n")
+    {
+        ; Check if the line contains the keyword
+        if InStr(Line, keyword)
+        {
+            ; Append text to this line
+            ; Line .= appendText
+            skip := true
+            continue
+        }
+
+        if !skip
+        {
+            ModifiedContent .= Line "`n"
+            skip := false
+        }
+    }
+
+    ; Write the modified content back to the file
+    FileDelete(FilePath)  ; Delete the old file
+    FileAppend(ModifiedContent, FilePath)  ; Write the new content
+}
+
+removeLine(FilePath, Keyword)
+{
+    ; Read the file content
+    FileContent := FileRead(FilePath)
+    if !FileContent {
+        MsgBox "Could not read file!"
+        return
+    }
+
+    ; Initialize a variable to store the modified content
+    ModifiedContent := ""
+    FoundKeyword := false  ; To track if the keyword has been found
+    SkipNextLine := false  ; To track if the next line should be skipped
+
+    ; Split the content into lines and iterate
+    for Line in StrSplit(FileContent, "`n") {
+        if SkipNextLine {
+            SkipNextLine := false  ; Reset skip flag after skipping one line
+            continue  ; Skip this line
+        }
+
+        ; Check if this line contains the keyword and it hasn't been found before
+        if !FoundKeyword && InStr(Line, Keyword) {
+            FoundKeyword := true
+            SkipNextLine := true  ; Set the flag to skip the next line
+        }
+
+        ; Rebuild the modified content
+        ModifiedContent .= Line "`n"
+    }
+
+    ; Write the modified content back to the file
+    FileDelete(FilePath)  ; Delete the old file
+    FileAppend(ModifiedContent, FilePath)  ; Write the new content
 }

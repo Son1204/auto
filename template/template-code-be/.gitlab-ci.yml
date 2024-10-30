@@ -35,12 +35,14 @@ stages:
   - manifest_updation
 
 # --------------------------------------------------------------------------------------------------
-#  TODO: SonarQube scan
+#  SonarQube scan
 # --------------------------------------------------------------------------------------------------
 sonarqube-check:
   image: nexus.cmctelecom.vn/eclipse-temurin:17-jdk-alpine
+  tags: ["sonar"]
   stage: sonarqube-check
   cache:
+    key: "${CI_JOB_NAME}"
     paths:
       - .sonar/cache
   before_script:
@@ -49,8 +51,8 @@ sonarqube-check:
   script:
     - ./gradlew sonar -Dsonar.qualitygate.wait=true
   allow_failure: false
-  only:
-    - merge_requests
+  rules: 
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "master"'
 
 # --------------------------------------------------------------------------------------------------
 # Build image
