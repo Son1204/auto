@@ -7,6 +7,7 @@
     if TargetFolder = ""
         return
 
+    
     fileAppendToLine(TargetFolder "/settings.gradle", "springDependenciesManagementVersion", "    id 'org.sonarqube' version `"${sonarVersion}`" apply false")
     fileAppendToLine(TargetFolder "/gradle.properties", "mavenVersion", "sonarVersion=4.2.1.3168")
     FileAppend("`napply plugin: 'org.sonarqube'", TargetFolder "/build.gradle")
