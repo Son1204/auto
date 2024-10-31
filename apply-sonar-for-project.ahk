@@ -69,3 +69,4 @@
     MsgBox "Apply sonarqube check done, gitoutput: " GitOutput, "Thong bao"
     ExitApp
 }
+
