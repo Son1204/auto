@@ -17,6 +17,9 @@ Constructor()
 	ButtonCreateprojectbe.OnEvent("Click", OnEventHandler)
 	ButtonCreatehemlbe := myGui.Add("Button", "x200 y24 w151 h58", "Create helm be")
 	ButtonCreatehemlbe.OnEvent("Click", OnEventHandlerCreateHelmBe)
+	ButtonCreatehemlbe := myGui.Add("Button", "x360 y24 w151 h58", "Apply sonarqube check")
+	ButtonCreatehemlbe.OnEvent("Click", OnEventHandlerApplySonarqubeCheckProjectBe)
+
 	myGui.OnEvent('Close', (*) => OnEventCloseHandler())
 	myGui.Title := "My Tool"
 	
@@ -36,6 +39,13 @@ Constructor()
 		SetTimer () => ToolTip(), -3000 ; tooltip timer
 	}
 
+	OnEventHandlerApplySonarqubeCheckProjectBe(*)
+	{
+		ToolTip("Apply sonarqube check" ButtonCreatehemlbe.Text "`n", 77, 277)
+		Run "apply-sonar-for-project.ahk"
+		SetTimer () => Send("^k"), -1000
+		SetTimer () => ToolTip(), -3000 ; tooltip timer
+	}
 
 	OnEventCloseHandler(*)
 	{
